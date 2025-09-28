@@ -9,7 +9,9 @@ const admin = require('../middleware/admin');
 // Create new order
 router.post('/', auth, async (req, res) => {
   try {
+    console.log('Order creation attempt by user:', req.user.id);
     const { products, shippingAddress } = req.body;
+    console.log('Order data received:', { products, shippingAddress });
     
     // Validate request body
     if (!products || !Array.isArray(products) || products.length === 0) {
@@ -60,6 +62,7 @@ router.post('/', auth, async (req, res) => {
     });
     
     await order.save();
+    console.log('Order created successfully:', order._id);
     
     res.status(201).json(order);
   } catch (error) {
@@ -87,10 +90,12 @@ router.get('/my-orders', auth, async (req, res) => {
 // Get all orders (admin only)
 router.get('/', [auth, admin], async (req, res) => {
   try {
+    console.log('Admin fetching orders, user:', req.user.id);
     const orders = await Order.find({})
       .populate('user', 'name email')
       .populate('products.product')
       .sort({ createdAt: -1 });
+    console.log('Found orders:', orders.length);
     
     res.json(orders);
   } catch (error) {
@@ -119,16 +124,19 @@ router.put('/:id', [auth, admin], async (req, res) => {
   }
 });
 
-/* Delete order (admin only)
+// Delete order (admin only)
 router.delete('/:id', [auth, admin], async (req, res) => {
   try {
     const order = await Order.findByIdAndDelete(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-
-    res.json({ message: 'Order deleted successfully', order });
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    res.json({ message: 'Order deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
-});*/
+});
 
 module.exports = router;
