@@ -5,7 +5,7 @@ const Quotation = require('../models/Quotation');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 
-
+// Get all suppliers (admin only)
 router.get('/', [auth, admin], async (req, res) => {
   try {
     const suppliers = await Supplier.find()
@@ -20,8 +20,7 @@ router.get('/', [auth, admin], async (req, res) => {
   }
 });
 
-
-
+// Get approved quotations for supplier form dropdown (admin only)
 router.get('/approved-quotations', [auth, admin], async (req, res) => {
   try {
     const approvedQuotations = await Quotation.find({ status: 'APPROVED' })
@@ -35,7 +34,7 @@ router.get('/approved-quotations', [auth, admin], async (req, res) => {
   }
 });
 
-
+// Create a new supplier (admin only)
 router.post('/', [auth, admin], async (req, res) => {
   try {
     const {
@@ -46,12 +45,12 @@ router.post('/', [auth, admin], async (req, res) => {
       productCode
     } = req.body;
 
-   
+    // Validate required fields
     if (!quotationId || !quantity || !productName || !productImage || !productCode) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-
+    // Check if quotation exists and is approved
     const quotation = await Quotation.findById(quotationId);
     if (!quotation) {
       return res.status(404).json({ message: 'Quotation not found' });
@@ -60,7 +59,7 @@ router.post('/', [auth, admin], async (req, res) => {
       return res.status(400).json({ message: 'Quotation must be approved to create supplier' });
     }
 
-    
+    // Check if product code already exists
     const existingSupplier = await Supplier.findOne({ productCode });
     if (existingSupplier) {
       return res.status(400).json({ message: 'Product code already exists' });
@@ -79,7 +78,7 @@ router.post('/', [auth, admin], async (req, res) => {
 
     await supplier.save();
     
-    
+    // Populate quotation data for response
     await supplier.populate('quotationId', 'name email companyName');
     
     console.log('New supplier created:', supplier._id);
@@ -90,7 +89,7 @@ router.post('/', [auth, admin], async (req, res) => {
   }
 });
 
-
+// Update supplier (admin only)
 router.put('/:id', [auth, admin], async (req, res) => {
   try {
     const {
@@ -107,7 +106,7 @@ router.put('/:id', [auth, admin], async (req, res) => {
       return res.status(404).json({ message: 'Supplier not found' });
     }
 
-    
+    // Check if product code already exists (if being updated)
     if (productCode && productCode !== supplier.productCode) {
       const existingSupplier = await Supplier.findOne({ 
         productCode, 
@@ -118,7 +117,7 @@ router.put('/:id', [auth, admin], async (req, res) => {
       }
     }
 
-    
+    // Update fields
     if (quantity !== undefined) supplier.quantity = Number(quantity);
     if (productName !== undefined) supplier.productName = productName;
     if (productImage !== undefined) supplier.productImage = productImage;
@@ -136,7 +135,7 @@ router.put('/:id', [auth, admin], async (req, res) => {
   }
 });
 
-
+// Delete supplier (admin only)
 router.delete('/:id', [auth, admin], async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id);
@@ -155,7 +154,7 @@ router.delete('/:id', [auth, admin], async (req, res) => {
   }
 });
 
-
+// Get single supplier (admin only)
 router.get('/:id', [auth, admin], async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id)
