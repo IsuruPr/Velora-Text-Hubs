@@ -36,18 +36,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Plus, Package, Search, FileText, Printer } from "lucide-react";
+import {
+  Edit,
+  Trash2,
+  Plus,
+  Package,
+  Search,
+  FileText,
+  Printer,
+} from "lucide-react";
 import { api } from "@/services/api";
 
-// Validation schema
+//  Validation schema
 const supplierSchema = z.object({
   quotationId: z.string().min(1, { message: "Please select a quotation" }),
-  quantity: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
-    message: "Quantity must be a positive number",
-  }),
-  productName: z.string().min(3, { message: "Product name must be at least 3 characters" }),
+  quantity: z
+    .string()
+    .refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+      message: "Quantity must be a positive number",
+    }),
+  productName: z
+    .string()
+    .min(3, { message: "Product name must be at least 3 characters" })
+    .regex(/^[A-Za-z\s]+$/, {
+      message: "Product name must contain only letters and spaces",
+    }), // Disallow numbers and special characters
   productImage: z.string().url({ message: "Please enter a valid image URL" }),
-  productCode: z.string().min(3, { message: "Product code must be at least 3 characters" }),
+  productCode: z.string().min(3, {
+    message: "Product code must be at least 3 characters",
+  }),
 });
 
 type SupplierFormValues = z.infer<typeof supplierSchema>;
@@ -79,7 +96,9 @@ interface Supplier {
 
 const SupplierManagement = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [approvedQuotations, setApprovedQuotations] = useState<ApprovedQuotation[]>([]);
+  const [approvedQuotations, setApprovedQuotations] = useState<
+    ApprovedQuotation[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -133,9 +152,11 @@ const SupplierManagement = () => {
       });
     }
   };
-//crud handler
+
+  // CRUD handlers
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this supplier?")) return;
+    if (!window.confirm("Are you sure you want to delete this supplier?"))
+      return;
     try {
       await api.suppliers.delete(id);
       setSuppliers(suppliers.filter((s) => s._id !== id));
@@ -202,16 +223,20 @@ const SupplierManagement = () => {
     setIsAddDialogOpen(true);
   };
 
-  //  Search suppliers by first letter
+  // Search suppliers by first letter
   const filteredSuppliers = suppliers.filter((s) => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return true; // show all when empty
+    if (!term) return true;
     return s.name.toLowerCase().startsWith(term);
   });
 
   const generatePDF = async (download: boolean = true) => {
     if (filteredSuppliers.length === 0) {
-      toast({ title: "No data", description: "No suppliers to generate PDF", variant: "destructive" });
+      toast({
+        title: "No data",
+        description: "No suppliers to generate PDF",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -222,7 +247,7 @@ const SupplierManagement = () => {
       pdfMakeModule.default.vfs = pdfFontsModule.vfs;
 
       const tableBody = [
-        ["Supplier Name", "Email", "Product", "Code", "Quantity", "Status", "Company"]
+        ["Supplier Name", "Email", "Product", "Code", "Quantity", "Status", "Company"],
       ];
 
       filteredSuppliers.forEach((s) => {
@@ -242,45 +267,57 @@ const SupplierManagement = () => {
         content: [
           { text: "Supplier Report", style: "header" },
           { text: `Generated on: ${new Date().toLocaleDateString()}`, style: "subheader" },
-          { text: `Total Suppliers: ${filteredSuppliers.length}`, style: "subheader", margin: [0,0,0,20] },
+          {
+            text: `Total Suppliers: ${filteredSuppliers.length}`,
+            style: "subheader",
+            margin: [0, 0, 0, 20],
+          },
           {
             table: {
               headerRows: 1,
               widths: [120, 150, 120, 80, 80, 80, "*"],
-              body: tableBody
+              body: tableBody,
             },
-            layout: "lightHorizontalLines"
+            layout: "lightHorizontalLines",
           },
         ],
         styles: {
-          header: { fontSize: 18, bold: true, margin: [0,0,0,10] },
-          subheader: { fontSize: 12, margin: [0,0,0,5] },
+          header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
+          subheader: { fontSize: 12, margin: [0, 0, 0, 5] },
         },
       };
 
       const pdfDocGenerator = pdfMakeModule.default.createPdf(docDefinition);
-
       if (download) {
         pdfDocGenerator.download("Supplier_Report.pdf");
-        toast({ title: "Success", description: "PDF downloaded successfully!", variant: "default" });
+        toast({
+          title: "Success",
+          description: "PDF downloaded successfully!",
+          variant: "default",
+        });
       } else {
         pdfDocGenerator.print();
       }
-
     } catch (error) {
       console.error("Error generating PDF:", error);
-      toast({ title: "Error", description: "Failed to generate PDF report", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF report",
+        variant: "destructive",
+      });
     } finally {
       setIsGeneratingPDF(false);
     }
   };
 
-  if (isLoading) return <div className="text-center py-8">Loading suppliers...</div>;
+  if (isLoading)
+    return <div className="text-center py-8">Loading suppliers...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h2 className="text-2xl font-semibold">Supplier Management</h2>
+
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="relative w-full md:w-64">
             <Input
@@ -291,19 +328,23 @@ const SupplierManagement = () => {
             />
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           </div>
-        {/*create button*/}
-          <Button className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white" onClick={openAddDialog}>
+
+          <Button
+            className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white"
+            onClick={openAddDialog}
+          >
             <Plus size={18} /> Add Supplier
           </Button>
-        {/*create button*/}
+
           <Button
             className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white"
             onClick={() => generatePDF(true)}
             disabled={isGeneratingPDF}
           >
-            <FileText size={18} /> {isGeneratingPDF ? "Generating..." : "Download PDF"}
+            <FileText size={18} />
+            {isGeneratingPDF ? "Generating..." : "Download PDF"}
           </Button>
-        {/*create button*/}
+
           <Button
             className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white"
             onClick={() => generatePDF(false)}
@@ -343,16 +384,26 @@ const SupplierManagement = () => {
                   <TableCell>{s.productCode}</TableCell>
                   <TableCell>{s.quantity}</TableCell>
                   <TableCell>
-                    <Badge variant={s.status === "ACTIVE" ? "default" : "secondary"}>
+                    <Badge
+                      variant={s.status === "ACTIVE" ? "default" : "secondary"}
+                    >
                       {s.status}
                     </Badge>
                   </TableCell>
                   <TableCell>{s.quotationId?.companyName}</TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(s)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(s)}
+                    >
                       <Edit size={18} />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(s._id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(s._id)}
+                    >
                       <Trash2 size={18} />
                     </Button>
                   </TableCell>
@@ -372,7 +423,9 @@ const SupplierManagement = () => {
       >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>{editingSupplier ? "Edit Supplier" : "Add Supplier"}</DialogTitle>
+            <DialogTitle>
+              {editingSupplier ? "Edit Supplier" : "Add Supplier"}
+            </DialogTitle>
           </DialogHeader>
 
           <Form {...form}>
@@ -409,7 +462,7 @@ const SupplierManagement = () => {
                   <FormItem>
                     <FormLabel>Product Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter product" {...field} />
+                      <Input placeholder="Enter product name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -451,7 +504,10 @@ const SupplierManagement = () => {
                   <FormItem>
                     <FormLabel>Product Image URL</FormLabel>
                     <FormControl>
-                      <Input placeholder="https://example.com/image.jpg" {...field} />
+                      <Input
+                        placeholder="https://example.com/image.jpg"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -483,9 +539,3 @@ const SupplierManagement = () => {
 };
 
 export default SupplierManagement;
-
-
-
-
-
-

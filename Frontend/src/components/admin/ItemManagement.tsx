@@ -35,7 +35,10 @@ import { api } from '@/services/api';
 
 // Form schema
 const productSchema = z.object({
-  name: z.string().min(3, { message: 'Product name must be at least 3 characters' }),
+  name: z.string().min(3, { message: 'Product name must be at least 3 characters' })
+    .regex(/^[a-zA-Z\s\-&']+$/, { 
+      message: 'Product name can only contain letters, spaces, hyphens (-), apostrophes (\'), and ampersands (&)' 
+    }),
   price: z.string().refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
     message: 'Price must be a positive number',
   }),
