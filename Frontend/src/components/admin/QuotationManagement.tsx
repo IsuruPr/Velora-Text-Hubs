@@ -11,8 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/services/api';
-import { Eye, Check, X, Edit, Calendar, Building, Phone, Mail, User, FileText, Trash2 } from 'lucide-react';
+import { Eye, Check, X, Edit, Calendar, Building, Phone, Mail, User, FileText, Trash2, Download, Search } from 'lucide-react';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
 
 interface Quotation {
   _id: string;
@@ -41,6 +42,7 @@ const QuotationManagement = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Quotation>>({});
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchQuotations = async () => {
     try {
@@ -185,42 +187,166 @@ const QuotationManagement = () => {
     }));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">Loading quotations...</div>
-      </div>
-    );
-  }
+  const filteredQuotations = quotations.filter(quotation =>
+    quotation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quotation.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quotation.phoneNumber.includes(searchTerm) ||
+    quotation.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quotation.status.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const generatePDFReport = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Velora', 10, 10);
+    doc.text('Quotation Management Report', 20, 20);
+    
+    // Date and summary
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated on: ${format(new Date(), 'MMMM dd, yyyy at hh:mm a')}`, 20, 30);
+    doc.text(`Total Quotations: ${filteredQuotations.length}`, 20, 40);
+    
+    let yPosition = 55;
+    
+    // Compact table headers
+    const headers = ['Number', 'Name', 'Company', 'Status', 'Date'];
+    const columnWidths = [10, 50, 50, 40, 30];
+    
+    // Draw table header
+    doc.setFillColor(200, 200, 200);
+    doc.rect(20, yPosition, 180, 8, 'F');
+    
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    
+    let xPosition = 20;
+    headers.forEach((header, index) => {
+        doc.text(header, xPosition + 2, yPosition + 5);
+        xPosition += columnWidths[index];
+    });
+    
+    yPosition += 8;
+    
+    // Table rows
+    filteredQuotations.forEach((quotation, index) => {
+        if (yPosition > 280) {
+            doc.addPage();
+            yPosition = 20;
+            
+            // Redraw headers
+            doc.setFillColor(200, 200, 200);
+            doc.rect(20, yPosition, 180, 8, 'F');
+            
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            let xPos = 20;
+            headers.forEach((header, idx) => {
+                doc.text(header, xPos + 2, yPosition + 5);
+                xPos += columnWidths[idx];
+            });
+            
+            yPosition += 8;
+        }
+        
+        // Alternate row colors
+        if (index % 2 === 0) {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(20, yPosition, 180, 8, 'F');
+        }
+        
+        // Row data
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        
+        const rowData = [
+            (index + 1).toString(),
+            quotation.name || 'N/A',
+            quotation.companyName || 'N/A',
+            quotation.status || 'N/A',
+            quotation.createdAt ? format(new Date(quotation.createdAt), 'MM/dd/yy') : 'N/A'
+        ];
+        
+        let xPos = 20;
+        rowData.forEach((data, colIndex) => {
+            let displayText = data;
+            if (data.length > 25) {
+                displayText = data.substring(0, 22) + '...';
+            }
+            
+            doc.text(displayText, xPos + 2, yPosition + 5);
+            xPos += columnWidths[colIndex];
+        });
+        
+        yPosition += 8;
+    });
+    
+    // Save the PDF
+    doc.save(`quotations-report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    
+    toast({
+        title: "Success",
+        description: "PDF report generated successfully",
+    });
+};
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold ">Quotation Management</h2>
+          <h2 className="text-2xl font-bold">Quotation Management</h2>
           <p className="text-muted-foreground">Manage customer quotation requests</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="show-rejected">Show Rejected</Label>
-          <Switch
-            id="show-rejected"
-            checked={showRejected}
-            onCheckedChange={setShowRejected}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="show-rejected">Show Rejected</Label>
+            <Switch
+              id="show-rejected"
+              checked={showRejected}
+              onCheckedChange={setShowRejected}
+            />
+            
+          </div>
+          <Button
+            onClick={generatePDFReport}
+            variant="outline"
+            size="sm"
+            className="flex items-center space-x-2 bg-black text-white hover:bg-black hover:text-white"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download Report</span>
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search quotations..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
           />
         </div>
       </div>
+      
 
       <Card>
         <CardHeader>
           <CardTitle>Quotation Requests</CardTitle>
           <CardDescription>
-            {quotations.length} quotation{quotations.length !== 1 ? 's' : ''} found
+            {filteredQuotations.length} of {quotations.length} quotation{quotations.length !== 1 ? 's' : ''} shown
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {quotations.length === 0 ? (
+          {filteredQuotations.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No quotations found
+              {searchTerm ? 'No quotations match your search' : 'No quotations found'}
             </div>
           ) : (
             <Table>
@@ -236,7 +362,7 @@ const QuotationManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {quotations.map((quotation) => (
+                {filteredQuotations.map((quotation) => (
                   <TableRow key={quotation._id}>
                     <TableCell>
                       {format(new Date(quotation.createdAt), 'MMM dd, yyyy')}
@@ -365,8 +491,8 @@ const QuotationManagement = () => {
                   </div>
 
                   <div className="md:col-span-2 space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex items-center space-x-2 text-blue-500">
+                      <FileText className="h-4 w-4 text-muted-foreground text-red-300" />
                       <Label>Product Details</Label>
                     </div>
                     <div className="bg-muted p-4 rounded text-sm whitespace-pre-wrap">
