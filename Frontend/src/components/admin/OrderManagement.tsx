@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'; 
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+
 import {
   Table,
   TableBody,
@@ -27,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, FileDown } from 'lucide-react';
+import { Trash2, FileDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { api } from '@/services/api';
 
@@ -74,6 +75,7 @@ const OrderManagement = () => {
             title: 'Authentication Error',
             description: 'Please log in to continue',
             variant: 'destructive',
+            duration: 4000,
           });
           return;
         }
@@ -84,6 +86,7 @@ const OrderManagement = () => {
           title: 'Error',
           description: `Failed to load orders: ${error.message}`,
           variant: 'destructive',
+          duration: 4000,
         });
         setOrders([]);
       } finally {
@@ -102,12 +105,15 @@ const OrderManagement = () => {
       toast({
         title: 'Success',
         description: `Order status updated to ${status}`,
+        variant: 'default',
+        duration: 4000,
       });
     } catch {
       toast({
         title: 'Error',
         description: 'Failed to update order status',
         variant: 'destructive',
+        duration: 4000,
       });
     }
   };
@@ -119,43 +125,94 @@ const OrderManagement = () => {
       toast({
         title: 'Success',
         description: 'Order deleted successfully',
+        variant: 'default',
+        duration: 4000,
       });
     } catch {
       toast({
         title: 'Error',
         description: 'Failed to delete order',
         variant: 'destructive',
+        duration: 4000,
       });
     }
   };
 
-  const handleEditOrder = (orderId: string) => {
-    toast({
-      title: 'Edit Order',
-      description: `Edit functionality for order #${orderId.slice(-8)} - Coming soon!`,
-    });
-  };
-
-  const handleGenerateReport = () => {
+  // ✅ Generate PDF Report with Left-Aligned Company Address
+  const handleGeneratePDF = () => {
     const filteredOrders = getFilteredOrders();
-    const csvRows = [
-      ['Order ID', 'Customer', 'Email', 'Date', 'Total', 'Status', 'Products'],
-      ...filteredOrders.map(order => [
-        order._id,
-        order.user?.name || 'Unknown',
-        order.user?.email || '',
-        new Date(order.createdAt).toLocaleDateString(),
-        `$${order.totalAmount.toFixed(2)}`,
-        order.status,
-        order.products.map(p => `${p.product?.name} (x${p.quantity})`).join(', ')
-      ])
-    ];
-    const csvContent = csvRows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `orders_report_${Date.now()}.csv`);
-    link.click();
+    const reportWindow = window.open('', '_blank');
+    if (reportWindow) {
+      reportWindow.document.write(`
+        <html>
+          <head>
+            <title>Company Orders Report</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 40px; }
+              header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+              .company-info { text-align: left; font-size: 14px; }
+              .report-title { text-align: center; flex-grow: 1; }
+              .report-title h1 { margin: 0; font-size: 24px; }
+              .report-title h2 { margin: 5px 0; font-size: 18px; font-weight: normal; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 14px; }
+              th { background-color: #f0f0f0; }
+            </style>
+          </head>
+          <body>
+            <header>
+              <div class="company-info">
+                <p>Velora Textile</p>
+                <p>123 Fashion Avenue,</p>
+                <p>United States</p>
+                <p>Phone: (123) 456-7890</p>
+                <p>Email: support@modaclothing.com</p>
+              </div>
+              <div class="report-title">
+                <h1>Orders Report</h1>
+                <h2>Date: ${new Date().toLocaleDateString()}</h2>
+              </div>
+            </header>
+            <table>
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Email</th>
+                  <th>Date</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Products</th>
+                  <th>Shipping Address</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredOrders.map(order => `
+                  <tr>
+                    <td>${order._id.slice(-8)}</td>
+                    <td>${order.user?.name || 'Unknown'}</td>
+                    <td>${order.user?.email || ''}</td>
+                    <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                    <td>$${order.totalAmount.toFixed(2)}</td>
+                    <td>${order.status}</td>
+                    <td>${order.products.map(p => `${p.product?.name} (x${p.quantity})`).join(', ')}</td>
+                    <td>
+                      ${order.shippingAddress.address}, ${order.shippingAddress.city}, 
+                      ${order.shippingAddress.postalCode}, ${order.shippingAddress.country}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            <footer style="margin-top: 20px; text-align: center; font-size: 12px;">
+              &copy; ${new Date().getFullYear()} Velora Textile. All rights reserved.
+            </footer>
+          </body>
+        </html>
+      `);
+      reportWindow.document.close();
+      reportWindow.print();
+    }
   };
 
   const getFilteredOrders = () => {
@@ -187,7 +244,6 @@ const OrderManagement = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold text-foreground">Order Management</h2>
         <div className="flex gap-3 items-center">
-          {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Filter by status" />
@@ -200,17 +256,13 @@ const OrderManagement = () => {
               <SelectItem value="delivered">Delivered</SelectItem>
             </SelectContent>
           </Select>
-
-          {/* Search */}
           <Input
             placeholder="Search orders..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-[200px]"
           />
-
-          {/* Generate Report */}
-          <Button variant="outline" onClick={handleGenerateReport} className="flex gap-2">
+          <Button variant="outline" onClick={handleGeneratePDF} className="flex gap-2">
             <FileDown className="h-4 w-4" /> Report
           </Button>
         </div>
@@ -281,14 +333,7 @@ const OrderManagement = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditOrder(order._id)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      {/* Only Delete Button */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -330,4 +375,3 @@ const OrderManagement = () => {
 };
 
 export default OrderManagement;
-
